@@ -41,7 +41,7 @@ exports.handler = async function(event, context) {
     });
     
     // Limit to 9 most recent newsletters
-    const recentCampaigns = campaignsInFolder.slice(0, 9);
+    const recentCampaigns = campaignsInFolder.slice(0, 12);
     
     const newslettersWithImages = await Promise.all(
       recentCampaigns.map(async (campaign) => {
