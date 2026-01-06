@@ -43,6 +43,7 @@ exports.handler = async function(event, context) {
     const newslettersWithImages = await Promise.all(
       campaignsInFolder.map(async (campaign) => {
         let thumbnailUrl = null;
+        let debugInfo = null;
         const title = campaign.settings.title || campaign.settings.subject_line;
         
         try {
@@ -68,18 +69,19 @@ exports.handler = async function(event, context) {
               allImages.push(match[1]);
             }
             
-            // Debug for the specific newsletter
-            if (title.includes('1 Big Thing')) {
-              console.log('=== DEBUG: 1 Big Thing newsletter ===');
-              console.log('Total images found:', allImages.length);
-              console.log('All images:', allImages);
-              console.log('First non-skipped image:', allImages.find(img => !SKIP_IMAGES.includes(img)));
-            }
-            
             thumbnailUrl = allImages.find(img => !SKIP_IMAGES.includes(img)) || null;
+            
+            // Add debug info for newsletters without thumbnails
+            if (!thumbnailUrl) {
+              debugInfo = {
+                totalImages: allImages.length,
+                allImages: allImages,
+                skippedImages: SKIP_IMAGES
+              };
+            }
           }
         } catch (error) {
-          console.error(`Error fetching content for campaign ${campaign.id}:`, error.message);
+          debugInfo = { error: error.message };
         }
         
         return {
@@ -88,7 +90,8 @@ exports.handler = async function(event, context) {
           subject: campaign.settings.subject_line,
           archiveUrl: campaign.archive_url,
           sendTime: campaign.send_time,
-          thumbnailUrl: thumbnailUrl
+          thumbnailUrl: thumbnailUrl,
+          debug: debugInfo
         };
       })
     );
@@ -100,7 +103,6 @@ exports.handler = async function(event, context) {
     };
 
   } catch (error) {
-    console.error('Error fetching campaigns:', error);
     return {
       statusCode: 500,
       headers,
