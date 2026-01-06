@@ -31,24 +31,56 @@ exports.handler = async function(event, context) {
 
     const data = await response.json();
     
-    // Filter campaigns by folder ID
     const campaignsInFolder = data.campaigns.filter(campaign => {
       return campaign.settings.folder_id === FOLDER_ID;
     });
     
-    // Transform the data to what we need for display
-    const newsletters = campaignsInFolder.map(campaign => ({
-      id: campaign.id,
-      title: campaign.settings.title || campaign.settings.subject_line,
-      subject: campaign.settings.subject_line,
-      archiveUrl: campaign.archive_url,
-      sendTime: campaign.send_time,
-    }));
+    // Fetch content for each campaign to get first image
+    const newslettersWithImages = await Promise.all(
+      campaignsInFolder.map(async (campaign) => {
+        let thumbnailUrl = null;
+        
+        try {
+          // Fetch campaign content
+          const contentResponse = await fetch(
+            `https://${MAILCHIMP_SERVER_PREFIX}.api.mailchimp.com/3.0/campaigns/${campaign.id}/content`,
+            {
+              headers: {
+                'Authorization': `Bearer ${MAILCHIMP_API_KEY}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+          
+          if (contentResponse.ok) {
+            const contentData = await contentResponse.json();
+            const html = contentData.html || '';
+            
+            // Extract first image URL from HTML
+            const imgMatch = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+            if (imgMatch && imgMatch[1]) {
+              thumbnailUrl = imgMatch[1];
+            }
+          }
+        } catch (error) {
+          console.error(`Failed to fetch content for campaign ${campaign.id}:`, error);
+        }
+        
+        return {
+          id: campaign.id,
+          title: campaign.settings.title || campaign.settings.subject_line,
+          subject: campaign.settings.subject_line,
+          archiveUrl: campaign.archive_url,
+          sendTime: campaign.send_time,
+          thumbnailUrl: thumbnailUrl
+        };
+      })
+    );
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ newsletters })
+      body: JSON.stringify({ newsletters: newslettersWithImages })
     };
 
   } catch (error) {
