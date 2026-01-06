@@ -40,13 +40,12 @@ exports.handler = async function(event, context) {
       return campaign.settings.folder_id === FOLDER_ID;
     });
     
-    // Fetch content for each campaign to get first image
     const newslettersWithImages = await Promise.all(
       campaignsInFolder.map(async (campaign) => {
         let thumbnailUrl = null;
+        const title = campaign.settings.title || campaign.settings.subject_line;
         
         try {
-          // Fetch campaign content
           const contentResponse = await fetch(
             `https://${MAILCHIMP_SERVER_PREFIX}.api.mailchimp.com/3.0/campaigns/${campaign.id}/content`,
             {
@@ -61,7 +60,6 @@ exports.handler = async function(event, context) {
             const contentData = await contentResponse.json();
             const html = contentData.html || '';
             
-            // Extract ALL image URLs from HTML
             const imgRegex = /<img[^>]+src=["']([^"']+)["']/gi;
             let match;
             const allImages = [];
@@ -70,9 +68,15 @@ exports.handler = async function(event, context) {
               allImages.push(match[1]);
             }
             
-            // Find first image that's not in the skip list
-            thumbnailUrl = allImages.find(img => !SKIP_IMAGES.includes(img)) || null;
+            // Debug for the specific newsletter
+            if (title.includes('1 Big Thing')) {
+              console.log('=== DEBUG: 1 Big Thing newsletter ===');
+              console.log('Total images found:', allImages.length);
+              console.log('All images:', allImages);
+              console.log('First non-skipped image:', allImages.find(img => !SKIP_IMAGES.includes(img)));
+            }
             
+            thumbnailUrl = allImages.find(img => !SKIP_IMAGES.includes(img)) || null;
           }
         } catch (error) {
           console.error(`Error fetching content for campaign ${campaign.id}:`, error.message);
@@ -80,7 +84,7 @@ exports.handler = async function(event, context) {
         
         return {
           id: campaign.id,
-          title: campaign.settings.title || campaign.settings.subject_line,
+          title: title,
           subject: campaign.settings.subject_line,
           archiveUrl: campaign.archive_url,
           sendTime: campaign.send_time,
