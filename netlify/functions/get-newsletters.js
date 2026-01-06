@@ -5,20 +5,17 @@ exports.handler = async function(event, context) {
   const MAILCHIMP_SERVER_PREFIX = process.env.MAILCHIMP_SERVER_PREFIX;
   const FOLDER_ID = process.env.MAILCHIMP_FOLDER_ID;
   
-  // Set CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Content-Type': 'application/json'
   };
 
-  // Handle preflight requests
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' };
   }
 
   try {
-    // Fetch all sent campaigns
     const url = `https://${MAILCHIMP_SERVER_PREFIX}.api.mailchimp.com/3.0/campaigns?status=sent&count=100&sort_field=send_time&sort_dir=DESC`;
     
     const response = await fetch(url, {
@@ -34,7 +31,6 @@ exports.handler = async function(event, context) {
 
     const data = await response.json();
     
-    // Log the folder IDs we're seeing
     console.log('Looking for folder ID:', FOLDER_ID, 'Type:', typeof FOLDER_ID);
     
     data.campaigns.forEach((campaign, index) => {
@@ -45,17 +41,15 @@ exports.handler = async function(event, context) {
       });
     });
     
-    // Try both string and number comparison
     const campaignsInFolder = data.campaigns.filter(campaign => {
       const campaignFolderId = campaign.settings.folder_id;
-      return campaignFolderId == FOLDER_ID || // Loose comparison
-             campaignFolderId === FOLDER_ID || // Strict comparison
-             String(campaignFolderId) === String(FOLDER_ID); // String comparison
+      return campaignFolderId == FOLDER_ID || 
+             campaignFolderId === FOLDER_ID || 
+             String(campaignFolderId) === String(FOLDER_ID);
     });
     
     console.log('Campaigns matched:', campaignsInFolder.length);
     
-    // Transform the data
     const newsletters = campaignsInFolder.map(campaign => ({
       id: campaign.id,
       title: campaign.settings.title || campaign.settings.subject_line,
