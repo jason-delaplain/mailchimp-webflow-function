@@ -1,5 +1,4 @@
 // netlify/functions/get-newsletters.js
-const fetch = require('node-fetch');
 
 exports.handler = async function(event, context) {
   const MAILCHIMP_API_KEY = process.env.MAILCHIMP_API_KEY;
