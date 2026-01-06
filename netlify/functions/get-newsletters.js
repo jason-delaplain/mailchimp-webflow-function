@@ -5,6 +5,11 @@ exports.handler = async function(event, context) {
   const MAILCHIMP_SERVER_PREFIX = process.env.MAILCHIMP_SERVER_PREFIX;
   const FOLDER_ID = process.env.MAILCHIMP_FOLDER_ID;
   
+  // Images to skip (logo, spacers, etc.)
+  const SKIP_IMAGES = [
+    'https://mcusercontent.com/147f3bacaff61bd7b5f703d60/images/afceb223-5180-5a16-c5ef-d67cbb77e779.jpg'
+  ];
+  
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
@@ -56,14 +61,21 @@ exports.handler = async function(event, context) {
             const contentData = await contentResponse.json();
             const html = contentData.html || '';
             
-            // Extract first image URL from HTML
-            const imgMatch = html.match(/<img[^>]+src=["']([^"']+)["']/i);
-            if (imgMatch && imgMatch[1]) {
-              thumbnailUrl = imgMatch[1];
+            // Extract ALL image URLs from HTML
+            const imgRegex = /<img[^>]+src=["']([^"']+)["']/gi;
+            let match;
+            const allImages = [];
+            
+            while ((match = imgRegex.exec(html)) !== null) {
+              allImages.push(match[1]);
             }
+            
+            // Find first image that's not in the skip list
+            thumbnailUrl = allImages.find(img => !SKIP_IMAGES.includes(img)) || null;
+            
           }
         } catch (error) {
-          console.error(`Failed to fetch content for campaign ${campaign.id}:`, error);
+          console.error(`Error fetching content for campaign ${campaign.id}:`, error.message);
         }
         
         return {
