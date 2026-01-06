@@ -26,7 +26,7 @@ exports.handler = async function(event, context) {
     });
 
     // Fetch campaigns from the specific folder
-    const url = `https://${MAILCHIMP_SERVER_PREFIX}.api.mailchimp.com/3.0/campaigns?statuses=completed&folder_id=${FOLDER_ID}&count=20&sort_field=send_time&sort_dir=DESC`;
+    const url = `https://${MAILCHIMP_SERVER_PREFIX}.api.mailchimp.com/3.0/campaigns?status=sent&count=20&sort_field=send_time&sort_dir=DESC`;;
     console.log('Fetching from URL:', url);
     
     const response = await fetch(url, {
