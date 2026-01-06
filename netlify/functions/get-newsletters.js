@@ -18,16 +18,8 @@ exports.handler = async function(event, context) {
   }
 
   try {
-    console.log('Environment variables:', {
-      hasApiKey: !!MAILCHIMP_API_KEY,
-      hasServerPrefix: !!MAILCHIMP_SERVER_PREFIX,
-      hasFolderId: !!FOLDER_ID,
-      folderId: FOLDER_ID
-    });
-
-    // Fetch campaigns from the specific folder
-    const url = `https://${MAILCHIMP_SERVER_PREFIX}.api.mailchimp.com/3.0/campaigns?status=sent&count=20&sort_field=send_time&sort_dir=DESC`;;
-    console.log('Fetching from URL:', url);
+    // Fetch all sent campaigns (without folder filter in API call)
+    const url = `https://${MAILCHIMP_SERVER_PREFIX}.api.mailchimp.com/3.0/campaigns?status=sent&count=100&sort_field=send_time&sort_dir=DESC`;
     
     const response = await fetch(url, {
       headers: {
@@ -44,11 +36,18 @@ exports.handler = async function(event, context) {
 
     const data = await response.json();
     
-    console.log('Campaigns found:', data.campaigns.length);
-    console.log('Total campaigns in account:', data.total_items);
+    console.log('Total campaigns fetched:', data.campaigns.length);
+    
+    // Filter campaigns by folder ID manually
+    const campaignsInFolder = data.campaigns.filter(campaign => {
+      // Check if campaign has a folder and it matches our target folder
+      return campaign.settings && campaign.settings.folder_id === FOLDER_ID;
+    });
+    
+    console.log('Campaigns in target folder:', campaignsInFolder.length);
     
     // Transform the data to what we need for display
-    const newsletters = data.campaigns.map(campaign => ({
+    const newsletters = campaignsInFolder.map(campaign => ({
       id: campaign.id,
       title: campaign.settings.title || campaign.settings.subject_line,
       subject: campaign.settings.subject_line,
@@ -60,13 +59,7 @@ exports.handler = async function(event, context) {
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ 
-        newsletters,
-        debug: {
-          totalCampaigns: data.total_items,
-          folderId: FOLDER_ID
-        }
-      })
+      body: JSON.stringify({ newsletters })
     };
 
   } catch (error) {
