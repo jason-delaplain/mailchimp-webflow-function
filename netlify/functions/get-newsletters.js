@@ -31,25 +31,12 @@ exports.handler = async function(event, context) {
 
     const data = await response.json();
     
-    console.log('Looking for folder ID:', FOLDER_ID, 'Type:', typeof FOLDER_ID);
-    
-    data.campaigns.forEach((campaign, index) => {
-      console.log(`Campaign ${index}:`, {
-        title: campaign.settings.title || campaign.settings.subject_line,
-        folder_id: campaign.settings.folder_id,
-        folder_id_type: typeof campaign.settings.folder_id
-      });
-    });
-    
+    // Filter campaigns by folder ID
     const campaignsInFolder = data.campaigns.filter(campaign => {
-      const campaignFolderId = campaign.settings.folder_id;
-      return campaignFolderId == FOLDER_ID || 
-             campaignFolderId === FOLDER_ID || 
-             String(campaignFolderId) === String(FOLDER_ID);
+      return campaign.settings.folder_id === FOLDER_ID;
     });
     
-    console.log('Campaigns matched:', campaignsInFolder.length);
-    
+    // Transform the data to what we need for display
     const newsletters = campaignsInFolder.map(campaign => ({
       id: campaign.id,
       title: campaign.settings.title || campaign.settings.subject_line,
@@ -65,11 +52,14 @@ exports.handler = async function(event, context) {
     };
 
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error fetching campaigns:', error);
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: error.message })
+      body: JSON.stringify({ 
+        error: 'Failed to fetch newsletters',
+        message: error.message 
+      })
     };
   }
 };
