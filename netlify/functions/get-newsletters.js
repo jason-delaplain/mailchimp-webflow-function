@@ -18,7 +18,7 @@ exports.handler = async function(event, context) {
   }
 
   try {
-    // Fetch all sent campaigns (without folder filter in API call)
+    // Fetch all sent campaigns
     const url = `https://${MAILCHIMP_SERVER_PREFIX}.api.mailchimp.com/3.0/campaigns?status=sent&count=100&sort_field=send_time&sort_dir=DESC`;
     
     const response = await fetch(url, {
@@ -29,48 +29,42 @@ exports.handler = async function(event, context) {
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Mailchimp API error:', response.status, errorText);
       throw new Error(`Mailchimp API error: ${response.status}`);
     }
 
     const data = await response.json();
     
-    console.log('Total campaigns fetched:', data.campaigns.length);
+    // Log the folder IDs we're seeing
+    console.log('Looking for folder ID:', FOLDER_ID, 'Type:', typeof FOLDER_ID);
     
-    // Filter campaigns by folder ID manually
-    const campaignsInFolder = data.campaigns.filter(campaign => {
-      // Check if campaign has a folder and it matches our target folder
-      return campaign.settings && campaign.settings.folder_id === FOLDER_ID;
+    data.campaigns.forEach((campaign, index) => {
+      console.log(`Campaign ${index}:`, {
+        title: campaign.settings.title || campaign.settings.subject_line,
+        folder_id: campaign.settings.folder_id,
+        folder_id_type: typeof campaign.settings.folder_id
+      });
     });
     
-    console.log('Campaigns in target folder:', campaignsInFolder.length);
+    // Try both string and number comparison
+    const campaignsInFolder = data.campaigns.filter(campaign => {
+      const campaignFolderId = campaign.settings.folder_id;
+      return campaignFolderId == FOLDER_ID || // Loose comparison
+             campaignFolderId === FOLDER_ID || // Strict comparison
+             String(campaignFolderId) === String(FOLDER_ID); // String comparison
+    });
     
-    // Transform the data to what we need for display
+    console.log('Campaigns matched:', campaignsInFolder.length);
+    
+    // Transform the data
     const newsletters = campaignsInFolder.map(campaign => ({
       id: campaign.id,
       title: campaign.settings.title || campaign.settings.subject_line,
       subject: campaign.settings.subject_line,
       archiveUrl: campaign.archive_url,
       sendTime: campaign.send_time,
-      thumbnailUrl: campaign.settings.preview_url || null,
     }));
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ newsletters })
-    };
-
-  } catch (error) {
-    console.error('Error fetching campaigns:', error);
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ 
-        error: 'Failed to fetch newsletters',
-        message: error.message 
-      })
-    };
-  }
-};
+      body: JSON
